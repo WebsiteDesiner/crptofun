@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Fun Event</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .deadline {
+            color: #ff4d4d;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .quote {
+            font-style: italic;
+            color: #666;
+            margin: 15px 0;
+            padding-left: 10px;
+            border-left: 3px solid #ddd;
+        }
+
+        .claim-button {
+            background: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 60px;
+            font-size: 24px;
+            color: #ff6b6b;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .claim-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        #walletStatus {
+            color: white;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .wallet-connect {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connect-wallet-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .connect-wallet-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .wallet-address {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: white;
+            font-size: 14px;
+            display: none;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-content {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .modal-button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="wallet-connect">
+        <button id="walletConnectBtn" class="connect-wallet-btn">连接钱包</button>
+        <div id="walletAddress" class="wallet-address"></div>
+    </div>
+
+    <div class="card">
+        <div class="title">Crypto Fun Event: Donate 0.0004 BNB to CZ's Wallet</div>
+        <div class="description">
+            I'm launching an event where anyone who transfers 0.0004 BNB to CZ's wallet (0x2f8116c4C4750467360c90e5B426F19857DE2930) will be recorded. Once the event ends, I will release a token on the Fourmeme platform. All participating wallets will be eligible to claim the infernal market tokens I purchase through the DApp.
+        </div>
+        <div class="deadline">⏰ Event Deadline: UTC 16:00</div>
+        <div class="quote">
+            CZ has stated:<br>
+            "I won't be keeping a satoshi of it. Will donate it away, most likely to people who had a loss on TST or some of the Broccolis."
+        </div>
+    </div>
+
+    <button id="claimButton" class="claim-button">CLAIM</button>
+
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div id="modal" class="modal">
+        <div class="modal-title">提示</div>
+        <div class="modal-content">
+            空投合约正在创建中，请稍后再试。<br>
+            预计开放时间：24小时内
+        </div>
+        <button class="modal-button" onclick="closeModal()">确定</button>
+    </div>
+
+    <script>
+        const walletConnectBtn = document.getElementById('walletConnectBtn');
+        const walletAddressDiv = document.getElementById('walletAddress');
+        const claimButton = document.getElementById('claimButton');
+        const modal = document.getElementById('modal');
+        const modalBackdrop = document.getElementById('modalBackdrop');
+
+        let currentAccount = null;
+
+        function showModal() {
+            modal.style.display = 'block';
+            modalBackdrop.style.display = 'block';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            modalBackdrop.style.display = 'none';
+        }
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_requestAccounts'
+                    });
+                    handleAccountsChanged(accounts);
+                    
+                    // 切换到 BSC 网络
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x38' }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            try {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0x38',
+                                        chainName: 'Binance Smart Chain',
+                                        nativeCurrency: {
+                                            name: 'BNB',
+                                            symbol: 'BNB',
+                                            decimals: 18
+                                        },
+                                        rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                                        blockExplorerUrls: ['https://bscscan.com/']
+                                    }]
+                                });
+                            } catch (addError) {
+                                console.error(addError);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error(error);
+                }
+            } else {
+                alert('请安装 MetaMask!');
+            }
+        }
+
+        function handleAccountsChanged(accounts) {
+            if (accounts.length === 0) {
+                walletConnectBtn.style.display = 'block';
+                walletAddressDiv.style.display = 'none';
+                currentAccount = null;
+            } else {
+                currentAccount = accounts[0];
+                walletConnectBtn.style.display = 'none';
+                walletAddressDiv.style.display = 'block';
+                walletAddressDiv.textContent = `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}`;
+            }
+        }
+
+        walletConnectBtn.addEventListener('click', connectWallet);
+        claimButton.addEventListener('click', showModal);
+
+        // 监听钱包账户变化
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', handleAccountsChanged);
+        }
+    </script>
+</body>
+</html> 
